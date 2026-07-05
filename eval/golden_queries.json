@@ -1,0 +1,10 @@
+[
+  {"query": "movies about dreams or alternate realities", "expected_content_ids": ["1002", "1021", "1010"]},
+  {"query": "something funny and real", "expected_content_ids": ["1013", "1019"]},
+  {"query": "dark psychological horror", "expected_content_ids": ["1020", "1018", "1012"]},
+  {"query": "uplifting story about friendship and hope", "expected_content_ids": ["1001"]},
+  {"query": "documentary about craftsmanship and dedication", "expected_content_ids": ["1015"]},
+  {"query": "true story about a real disaster", "expected_content_ids": ["1016"]},
+  {"query": "Oscar-winning foreign language drama", "expected_content_ids": ["1003"]},
+  {"query": "nature and wildlife documentary", "expected_content_ids": ["1005"]}
+]
