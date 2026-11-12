@@ -113,6 +113,27 @@ queries shown above) and reports two metrics per query:
 
 **Results on the current catalog: Avg R-Precision = 0.77, Avg Recall@5 = 0.88.**
 
+### Regression gate in CI
+
+The same evaluation runs on every pull request as a test
+(`tests/test_eval_gate.py`) and fails if either average drops below
+`eval/baseline.json` (R-Precision 0.77, Recall@5 0.875 — the exact current
+values). It uses the real search API and the committed catalog, with the
+golden queries' embeddings precomputed in `eval/query_embeddings.json`, so CI
+needs no OpenAI key and the result is deterministic.
+
+This turns prompt and model changes into reviewable experiments: edit
+`prompts/enrichment_prompt.md`, re-run `python -m src.enrich`, commit the new
+`output/search_index.json`, and CI reports whether retrieval quality held.
+When a change improves the metrics, raise the baseline in the same PR.
+
+Regenerate the query embeddings only when the golden queries or the embedding
+model change (the gate checks both and says so):
+
+```bash
+python -m eval.build_query_embeddings
+```
+
 ## Running tests
 
 ```bash
@@ -341,9 +362,6 @@ quantitative golden set.
 - **A larger, multi-annotator golden dataset** with proper precision/recall
   statistics — 8 queries and a single annotator is indicative, not
   statistically robust.
-- **Automated regression tests** on the prompt: re-running the golden query
-  set on every prompt change, to catch quality regressions before they reach
-  production.
 - **An LLM-based ranking fallback** for queries where no result clears the
   similarity threshold — potentially useful for complex or negated queries
   that pure embeddings handle poorly, not built to keep the first version
@@ -369,7 +387,11 @@ ai-content-discovery/
 ├── prompts/enrichment_prompt.md  # enrichment prompt template
 ├── eval/
 │   ├── golden_queries.json
-│   └── run_eval.py
+│   ├── query_embeddings.json      # precomputed golden-query embeddings for CI
+│   ├── baseline.json              # minimum metrics enforced by the CI gate
+│   ├── metrics.py                 # R-Precision, Recall@k
+│   ├── build_query_embeddings.py
+│   └── run_eval.py                # against a running server
 ├── tests/                         # pytest suite (no external API calls)
 ├── .github/workflows/ci.yml       # lint + tests on every PR
 └── output/

@@ -7,27 +7,15 @@ Requires the search server to be running:
 Run with:
     python -m eval.run_eval
 
-Metrics:
-
-  - R-Precision: precision computed at k=R, where R is the number of
-    relevant items expected for THAT query (not a fixed k=5 for all
-    queries). Standard IR metric for datasets with uneven relevant-item
-    counts per query -- which this 21-title catalog has (R ranges from 1
-    to 3 across the golden set). A fixed Precision@5 would artificially
-    cap queries with R<5 (e.g. a query expecting only 1 relevant title
-    can never score above 0.20 on a fixed top-5 window, even with a
-    perfect top-1 result) -- R-Precision does not have this problem.
-
-  - Recall@5: unaffected by the same issue (it can reach 1.0 regardless
-    of R, as long as all relevant items appear somewhere in the top 5),
-    so it is kept as-is rather than replaced.
-
+Metrics (R-Precision, Recall@5) are defined in eval/metrics.py.
 """
 
 import json
 from pathlib import Path
 
 import httpx
+
+from eval.metrics import r_precision, recall_at_k
 
 SEARCH_URL = "http://localhost:8000/search"
 TOP_K = 5
@@ -54,20 +42,14 @@ def run_eval() -> None:
         response = httpx.get(SEARCH_URL, params={"q": query, "top_k": TOP_K}, timeout=15)
         response.raise_for_status()
         results = response.json()["results"]
+        ranked_ids = [r["content_id"] for r in results]
 
-        # Recall@5: computed over the full top-5 window, as before.
-        returned_ids_top5 = {r["content_id"] for r in results}
-        hits_top5 = expected_ids & returned_ids_top5
-        recall = len(hits_top5) / R if R > 0 else 0.0
+        recall = recall_at_k(ranked_ids, expected_ids, k=TOP_K)
+        r_prec = r_precision(ranked_ids, expected_ids)
+        hits_top5 = expected_ids & set(ranked_ids[:TOP_K])
+        hits_top_r = expected_ids & set(ranked_ids[:R])
 
-        # R-Precision: computed over only the top-R results, R = number
-        # of relevant items expected for THIS query, not a fixed 5.
-        top_r_results = results[:R]
-        returned_ids_top_r = {r["content_id"] for r in top_r_results}
-        hits_top_r = expected_ids & returned_ids_top_r
-        r_precision = len(hits_top_r) / R if R > 0 else 0.0
-
-        r_precision_scores.append(r_precision)
+        r_precision_scores.append(r_prec)
         recall_scores.append(recall)
 
         print(f"Query      : {query}")
@@ -76,7 +58,7 @@ def run_eval() -> None:
         print(f"Got (top-5): {got}")
         print(f"Hits (top-5, for recall)  : {sorted(hits_top5) or 'none'}")
         print(f"Hits (top-{R}, for R-precision): {sorted(hits_top_r) or 'none'}")
-        print(f"R-Precision: {r_precision:.2f}  |  Recall@5: {recall:.2f}")
+        print(f"R-Precision: {r_prec:.2f}  |  Recall@5: {recall:.2f}")
         print()
 
     avg_r_precision = sum(r_precision_scores) / len(r_precision_scores)
