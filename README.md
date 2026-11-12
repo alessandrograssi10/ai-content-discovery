@@ -1,5 +1,7 @@
 # AI-Powered Content Discovery
 
+[![CI](https://github.com/alessandrograssi10/ai-content-discovery/actions/workflows/ci.yml/badge.svg)](https://github.com/alessandrograssi10/ai-content-discovery/actions/workflows/ci.yml)
+
 A three-stage pipeline that fetches movie/TV metadata, enriches it with AI-generated
 structured metadata, and exposes a natural-language semantic search API over the
 resulting catalog.
@@ -110,6 +112,20 @@ queries shown above) and reports two metrics per query:
   same ceiling issue (it can reach 1.0 regardless of R).
 
 **Results on the current catalog: Avg R-Precision = 0.77, Avg Recall@5 = 0.88.**
+
+## Running tests
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+pytest
+```
+
+The suite makes no calls to TMDb or OpenAI and needs no API keys: unit tests
+cover the Pydantic schemas, the TMDb matching cascade (against an in-memory
+HTTP transport) and the embedding text builder; API tests run the real FastAPI
+app and the committed `search_index.json` with a fake LLM client in place of
+OpenAI. CI runs lint and tests on every pull request and on every push to `main`.
 
 ## Design decisions
 
@@ -336,9 +352,6 @@ quantitative golden set.
   distinguished in the console log via `type(exc).__name__`), to make failure
   categories queryable directly from the output at a scale where failures
   are common enough to analyze.
-- **pytest coverage** on Pydantic schema validation and API response shape —
-  deprioritized in favor of the empirical validation scripts and golden-set
-  evaluation actually built, given the time available.
 
 ## Project structure
 
@@ -357,6 +370,8 @@ ai-content-discovery/
 ├── eval/
 │   ├── golden_queries.json
 │   └── run_eval.py
+├── tests/                         # pytest suite (no external API calls)
+├── .github/workflows/ci.yml       # lint + tests on every PR
 └── output/
     ├── fetched_content.json      # Stage 1 output
     ├── enriched_content.json     # main output (no embeddings)
